@@ -6,32 +6,28 @@ import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
+import java.util.Scanner;
 
 public class Main {
 
     final static int PORT = 8989;
     final static String HOST = "localhost";
-    final static String WORD = "или";           // передаваемое слово
     final static String PATHS = "pdfs";         // путь к папке с пдф-ками
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws IOException {
         // Server
         Thread thread = new Thread(Main::serverStart);
         thread.start();
-        // Client
-        try (
-                Socket socket = new Socket(HOST, PORT);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
-        ) {
-            out.println(WORD);
-            String res = prettyPrint(in.readLine());
-            System.out.println(res);
+        // Input
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            System.out.print("Введите слово, которое необходимо найти: ");
+            String word = scanner.nextLine();
+            System.out.println(clientStart(word));
         }
     }
 
     private static String prettyPrint(String json) {
-        // делаем красивый вывод
         Gson gson2 = new GsonBuilder().setPrettyPrinting().create();
         JsonParser jp = new JsonParser();
         JsonElement je = jp.parse(json);
@@ -40,11 +36,10 @@ public class Main {
 
     private static void serverStart() {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            Socket clientSocket = serverSocket.accept();
-            while (!clientSocket.isClosed()) {
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
                 PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                System.out.printf("New connection accepted. Port: %d%n", clientSocket.getPort());
                 // Process
                 String incomingString = in.readLine();
                 String outputString = requestProcessing(incomingString);
@@ -63,8 +58,18 @@ public class Main {
         Type listType = new TypeToken<List<PageEntry>>() {
         }.getType();
         Gson gson = new GsonBuilder().create();
-        String json = gson.toJson(list, listType);
-        return json;
+        return gson.toJson(list, listType);
+    }
+
+    private static String clientStart(String word) throws IOException {
+        try (
+                Socket socket = new Socket(HOST, PORT);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
+        ) {
+            out.println(word);
+            return prettyPrint(in.readLine());
+        }
     }
 
 }
